@@ -3,7 +3,7 @@
   ansible.builtin.user:
     name: "{{ user }}"
     shell: /bin/zsh # way better than vanilla bash
-    groups: sudoers
+    groups: sudo
     append: true # don't remove user from groups not listed in 'groups'
     generate_ssh_key: true
     update_password: on_create # keep user's password if already set
@@ -23,6 +23,11 @@
   tags:
     - ssh
   block:
+    - name: Ensure openssh-server installed
+      ansible.builtin.apt:
+        name: openssh-server
+        state: latest
+        update_cache: true
     - name: Find existing ssh keys
       ansible.builtin.find:
         paths: "/etc/ssh"
@@ -61,6 +66,7 @@
   ansible.builtin.apt_repository:
     repo: deb-src http://http.kali.org/kali kali-rolling main contrib non-free
     state: present
+  when: ansible_facts.distribution == "Kali"
   tags:
     - apt
 
@@ -87,6 +93,20 @@
         repo: deb https://packages.microsoft.com/repos/vscode stable main
         filename: vscode
         state: present
+
+- name: Install git-credential-manager
+  tags:
+    - gcm
+    - apt
+  block:
+    - name: Get latest version of gcm
+      ansible.builtin.uri:
+        url: "{{ gcm.release_api_url }}"
+      register: gcm_version
+    - name: Install latest version of gcm
+      ansible.builtin.apt:
+        deb: "{{ gcm.deb_url_prefix }}/{{ gcm_version.json.tag_name }}/gcm-linux_amd64{{ gcm_version.json.tag_name | replace('v','.') }}.deb"
+      notify: Configure git-credential-manager
 
 - name: Get foreign dpkg architectures
   ansible.builtin.command: dpkg --print-foreign-architectures
@@ -136,6 +156,13 @@
     - go
     - golang
   block:
+    - name: Check currently installed version of Go
+      ansible.builtin.shell:
+        cmd: "/usr/local/go/bin/go version | awk '{print $3}'"
+      register: installed_go_version
+      changed_when: installed_go_version.stdout
+      failed_when: false
+      become_user: "{{ user }}"
     - name: Find latest release version of Go
       ansible.builtin.uri:
         method: GET
@@ -144,13 +171,14 @@
         body_format: raw
         return_content: true
       register: latest_go_version
-    # - debug:
-    #     var: latest_go_version['content']
+    # - debug: latest_go_version.content
+    # - debug: installed_go_version.stdout
     - name: Download & Install latest version of Go
       ansible.builtin.unarchive:
         src: "https://golang.org/dl/{{ latest_go_version['content'] }}.linux-amd64.tar.gz"
         dest: /usr/local
         remote_src: true
+      when: latest_go_version.content != installed_go_version.stdout
 
 - name: Install Rust
   become_user: "{{ user }}"
@@ -179,6 +207,12 @@
   tags:
     - pyenv
   block:
+    - name: Install pyenv dependencies
+      become_user: root
+      ansible.builtin.apt:
+        name: "{{ apt.pyenv_deps }}"
+        state: latest
+        update_cache: false
     - name: Find latest release version of pyenv
       ansible.builtin.uri:
         method: GET
@@ -246,7 +280,7 @@
         - name: Fetch oh-my-zsh
           ansible.builtin.uri:
             url: "{{ ohmyzsh.install_url }}"
-            return_content: yes
+            return_content: true
           when: not ohmyzsh_dir.stat.exists
           register: ohmyzsh_installer
         - name: Run oh-my-zsh installer
@@ -295,7 +329,7 @@
 
 - name: Checking if reboot required
   ansible.builtin.command: test -f /var/run/reboot-required
-  failed_when: False
+  failed_when: false
   register: reboot_required
   changed_when: reboot_required.rc == 0
   notify: Rebooting machine
