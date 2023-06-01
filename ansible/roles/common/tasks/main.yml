@@ -11,64 +11,64 @@
 
 # To only regenerate ssh keys once per host, we touch a file when done.
 # If the file exists, don't do regeneration routine
-- name: Check for ssh-key touchfile
-  ansible.builtin.stat:
-    path: "{{ sshkey_touchfile }}"
-  register: sshtf
-  tags:
-    - ssh
-
-- name: Regenerate host ssh keys
-  when: not sshtf.stat.exists
-  tags:
-    - ssh
-  block:
-    - name: Ensure openssh-server installed
-      ansible.builtin.apt:
-        name: openssh-server
-        state: latest
-        update_cache: true
-    - name: Find existing ssh keys
-      ansible.builtin.find:
-        paths: "/etc/ssh"
-        patterns: "ssh_host_*"
-      register: sshkeys
-    - name: Delete old ssh keys
-      ansible.builtin.file:
-        path: "{{ item.path }}"
-        state: absent
-      loop: "{{ sshkeys.files }}"
-    - name: Generate new host ssh keys
-      ansible.builtin.command:
-        cmd: dpkg-reconfigure openssh-server
-        creates: /etc/ssh/ssh_host_rsa_key
-    - name: Restart ssh server
-      ansible.builtin.service:
-        name: ssh
-        state: restarted
-    - name: Create ssh-key touchfile
-      ansible.builtin.file:
-        path: "{{ sshkey_touchfile }}"
-        state: touch
-        mode: 0640
-
-- name: Apt full-upgrade
-  ansible.builtin.apt:
-    upgrade: full
-    update_cache: true
-    autoclean: true
-    autoremove: true
-  tags:
-    - apt
-    - update
-
-- name: Include Apt deb-src repos
-  ansible.builtin.apt_repository:
-    repo: deb-src http://http.kali.org/kali kali-rolling main contrib non-free
-    state: present
-  when: ansible_facts.distribution == "Kali"
-  tags:
-    - apt
+#- name: Check for ssh-key touchfile
+#  ansible.builtin.stat:
+#    path: "{{ sshkey_touchfile }}"
+#  register: sshtf
+#  tags:
+#    - ssh
+#
+#- name: Regenerate host ssh keys
+#  when: not sshtf.stat.exists
+#  tags:
+#    - ssh
+#  block:
+#    - name: Ensure openssh-server installed
+#      ansible.builtin.apt:
+#        name: openssh-server
+#        state: latest
+#        update_cache: true
+#    - name: Find existing ssh keys
+#      ansible.builtin.find:
+#        paths: "/etc/ssh"
+#        patterns: "ssh_host_*"
+#      register: sshkeys
+#    - name: Delete old ssh keys
+#      ansible.builtin.file:
+#        path: "{{ item.path }}"
+#        state: absent
+#      loop: "{{ sshkeys.files }}"
+#    - name: Generate new host ssh keys
+#      ansible.builtin.command:
+#        cmd: dpkg-reconfigure openssh-server
+#        creates: /etc/ssh/ssh_host_rsa_key
+#    - name: Restart ssh server
+#      ansible.builtin.service:
+#        name: ssh
+#        state: restarted
+#    - name: Create ssh-key touchfile
+#      ansible.builtin.file:
+#        path: "{{ sshkey_touchfile }}"
+#        state: touch
+#        mode: 0640
+#
+#- name: Apt full-upgrade
+#  ansible.builtin.apt:
+#    upgrade: full
+#    update_cache: true
+#    autoclean: true
+#    autoremove: true
+#  tags:
+#    - apt
+#    - update
+#
+#- name: Include Apt deb-src repos
+#  ansible.builtin.apt_repository:
+#    repo: deb-src http://http.kali.org/kali kali-rolling main contrib non-free
+#    state: present
+#  when: ansible_facts.distribution == "Kali"
+#  tags:
+#    - apt
 
 - name: Install Apt tools for adding repos
   ansible.builtin.apt:
@@ -108,19 +108,19 @@
         deb: "{{ gcm.deb_url_prefix }}/{{ gcm_version.json.tag_name }}/gcm-linux_amd64{{ gcm_version.json.tag_name | replace('v','.') }}.deb"
       notify: Configure git-credential-manager
 
-- name: Get foreign dpkg architectures
-  ansible.builtin.command: dpkg --print-foreign-architectures
-  register: dpkg_architectures
-  changed_when: false # never shows as creating a change
-  tags:
-    - apt
+        #- name: Get foreign dpkg architectures
+        #  ansible.builtin.command: dpkg --print-foreign-architectures
+        #  register: dpkg_architectures
+        #  changed_when: false # never shows as creating a change
+        #  tags:
+        #    - apt
 # - debug:
 #     var: dpkg_architectures.stdout
-- name: Add i386 architecture to dpkg
-  ansible.builtin.command: dpkg --add-architecture i386
-  when: "'i386' not in dpkg_architectures.stdout"
-  tags:
-    - apt
+#- name: Add i386 architecture to dpkg
+#ansible.builtin.command: dpkg --add-architecture i386
+#when: "'i386' not in dpkg_architectures.stdout"
+#tags:
+#- apt
 
 - name: "Install apt packages: {{ apt.install | join(', ') }}"
   ansible.builtin.apt:
@@ -132,24 +132,24 @@
     - apt
     - update
 
-- name: Install dotfiles
-  become_user: "{{ user }}"
-  tags:
-    - dotfiles
-  block:
-    - name: Download dotfiles repo
-      ansible.builtin.git:
-        repo: "{{ dotfiles.repo }}"
-        dest: "{{ dotfiles.dir }}"
-    - name: Set dotfiles installer as executable
-      ansible.builtin.file:
-        path: "{{ dotfiles.dir }}/install.sh"
-        mode: 0750
-    - name: Run dotfiles installer
-      ansible.builtin.command:
-        chdir: "{{ dotfiles.dir }}"
-        cmd: "./install.sh"
-        creates: "{{ homedir }}/.gitconfig-aliases"
+#- name: Install dotfiles
+#  become_user: "{{ user }}"
+#  tags:
+#    - dotfiles
+#  block:
+#    - name: Download dotfiles repo
+#      ansible.builtin.git:
+#        repo: "{{ dotfiles.repo }}"
+#        dest: "{{ dotfiles.dir }}"
+#    - name: Set dotfiles installer as executable
+#      ansible.builtin.file:
+#        path: "{{ dotfiles.dir }}/install.sh"
+#        mode: 0750
+#    - name: Run dotfiles installer
+#      ansible.builtin.command:
+#        chdir: "{{ dotfiles.dir }}"
+#        cmd: "./install.sh"
+#        creates: "{{ homedir }}/.gitconfig-aliases"
 
 - name: Install latest release of Golang
   tags:
@@ -180,80 +180,80 @@
         remote_src: true
       when: latest_go_version.content != installed_go_version.stdout
 
-- name: Install Rust
-  become_user: "{{ user }}"
-  tags:
-    - rust
-  block:
-    - name: "Check if Rust installed for {{ user }} user"
-      ansible.builtin.stat:
-        path: "{{ homedir }}/.cargo"
-      register: cargo_dir
-    - name: Fetch rustup
-      ansible.builtin.uri:
-        url: https://sh.rustup.rs
-        return_content: yes
-      when: not cargo_dir.stat.exists
-      register: rustup_installer
-    - name: Run rustup installer
-      ansible.builtin.command:
-        cmd: sh -s -- -y
-        stdin: "{{ rustup_installer.content }}"
-      when: not cargo_dir.stat.exists
+#- name: Install Rust
+#  become_user: "{{ user }}"
+#  tags:
+#    - rust
+#  block:
+#    - name: "Check if Rust installed for {{ user }} user"
+#      ansible.builtin.stat:
+#        path: "{{ homedir }}/.cargo"
+#      register: cargo_dir
+#    - name: Fetch rustup
+#      ansible.builtin.uri:
+#        url: https://sh.rustup.rs
+#        return_content: yes
+#      when: not cargo_dir.stat.exists
+#      register: rustup_installer
+#    - name: Run rustup installer
+#      ansible.builtin.command:
+#        cmd: sh -s -- -y
+#        stdin: "{{ rustup_installer.content }}"
+#      when: not cargo_dir.stat.exists
 
 # Pyenv lets us have python2 install alongside the default system python3
-- name: "Install & configure pyenv for {{ user }} user"
-  become_user: "{{ user }}"
-  tags:
-    - pyenv
-  block:
-    - name: Install pyenv dependencies
-      become_user: root
-      ansible.builtin.apt:
-        name: "{{ apt.pyenv_deps }}"
-        state: latest
-        update_cache: false
-    - name: Find latest release version of pyenv
-      ansible.builtin.uri:
-        method: GET
-        url: "{{ pyenv.release_api_url }}"
-        follow_redirects: safe
-        body_format: json
-      register: pyenv_release_info
-    - name: Download pyenv
-      ansible.builtin.git:
-        repo: "{{ pyenv.repo_url }}"
-        dest: "{{ pyenv.root }}"
-        depth: 1
-        version: "{{ pyenv_release_info['json']['tag_name'] }}"
-    - name: Install pyenv python version
-      ansible.builtin.shell:
-        cmd: |
-          export PYENV_ROOT="$HOME/.pyenv"
-          export PATH="$PYENV_ROOT/bin:$PATH"
-          eval "$(pyenv init --path)"
-          eval "$(pyenv init -)"
-          CFLAGS='-O2' pyenv install -s {{ pyenv.python_ver }}
-        creates: "{{ homedir }}/.pyenv/versions/{{ pyenv.python_ver }}"
-    - name: Validate pyenv configured in .zshrc
-      ansible.builtin.lineinfile:
-        path: "{{ homedir }}/.zshrc"
-        line: "{{ item }}"
-        state: present
-      loop:
-        - export PYENV_ROOT="$HOME/.pyenv"
-        - export PATH="$PYENV_ROOT/bin:$PATH"
-        - eval "$(pyenv init --path)"
-        - eval "$(pyenv init -)"
-    - name: Validate pyenv configured in .profile
-      ansible.builtin.lineinfile:
-        path: "{{ homedir }}/.profile"
-        line: "{{ item }}"
-        state: present
-      loop:
-        - export PYENV_ROOT="$HOME/.pyenv"
-        - export PATH="$PYENV_ROOT/bin:$PATH"
-        - eval "$(pyenv init --path)"
+#- name: "Install & configure pyenv for {{ user }} user"
+#  become_user: "{{ user }}"
+#  tags:
+#    - pyenv
+#  block:
+#    - name: Install pyenv dependencies
+#      become_user: root
+#      ansible.builtin.apt:
+#        name: "{{ apt.pyenv_deps }}"
+#        state: latest
+#        update_cache: false
+#    - name: Find latest release version of pyenv
+#      ansible.builtin.uri:
+#        method: GET
+#        url: "{{ pyenv.release_api_url }}"
+#        follow_redirects: safe
+#        body_format: json
+#      register: pyenv_release_info
+#    - name: Download pyenv
+#      ansible.builtin.git:
+#        repo: "{{ pyenv.repo_url }}"
+#        dest: "{{ pyenv.root }}"
+#        depth: 1
+#        version: "{{ pyenv_release_info['json']['tag_name'] }}"
+#    - name: Install pyenv python version
+#      ansible.builtin.shell:
+#        cmd: |
+#          export PYENV_ROOT="$HOME/.pyenv"
+#          export PATH="$PYENV_ROOT/bin:$PATH"
+#          eval "$(pyenv init --path)"
+#          eval "$(pyenv init -)"
+#          CFLAGS='-O2' pyenv install -s {{ pyenv.python_ver }}
+#        creates: "{{ homedir }}/.pyenv/versions/{{ pyenv.python_ver }}"
+#    - name: Validate pyenv configured in .zshrc
+#      ansible.builtin.lineinfile:
+#        path: "{{ homedir }}/.zshrc"
+#        line: "{{ item }}"
+#        state: present
+#      loop:
+#        - export PYENV_ROOT="$HOME/.pyenv"
+#        - export PATH="$PYENV_ROOT/bin:$PATH"
+#        - eval "$(pyenv init --path)"
+#        - eval "$(pyenv init -)"
+#    - name: Validate pyenv configured in .profile
+#      ansible.builtin.lineinfile:
+#        path: "{{ homedir }}/.profile"
+#        line: "{{ item }}"
+#        state: present
+#      loop:
+#        - export PYENV_ROOT="$HOME/.pyenv"
+#        - export PATH="$PYENV_ROOT/bin:$PATH"
+#        - eval "$(pyenv init --path)"
 
 - name: "Install python packages: {{ pip.install | join(', ') }}"
   become_user: "{{ user }}"
